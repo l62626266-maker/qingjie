@@ -1,0 +1,30 @@
+{
+  "name": "pocketkit",
+  "version": "1.0.0",
+  "description": "专为 iPhone 设计的本地隐私工具箱 PWA",
+  "scripts": {
+    "build": "esbuild app-source.js --bundle --minify --format=iife --target=safari16 --outfile=app.js && node scripts/generate-icons.mjs",
+    "serve": "node server.mjs",
+    "check": "esbuild app-source.js --bundle --format=iife --target=safari16 --log-level=warning --outfile=.check-app.js && node -e \"require('fs').unlinkSync('.check-app.js')\""
+  },
+  "keywords": [
+    "pwa",
+    "iphone",
+    "tools",
+    "ocr"
+  ],
+  "type": "commonjs",
+  "dependencies": {
+    "@techstark/opencv-js": "^5.0.0-release.1",
+    "@tesseract.js-data/chi_sim": "^1.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "jspdf": "^4.2.1",
+    "jsqr": "^1.4.0",
+    "qrcode": "^1.5.4",
+    "tesseract.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "pngjs": "^7.0.0"
+  }
+}

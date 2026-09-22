@@ -1,0 +1,7 @@
+node_modules/
+qa-*.png
+server.log
+server.pid
+.playwright-cli/
+.check-app.js
+.DS_Store
