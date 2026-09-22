@@ -1,11 +1,12 @@
 import QRCode from 'qrcode';
 import jsQR from 'jsqr';
 import { jsPDF } from 'jspdf';
+import { PDFDocument, degrees } from 'pdf-lib';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { currentView: 'home', activeTool: null, notes: [], scanPages: [], installPrompt: null, imageBlob: null, imageName: '轻捷图片.jpg', ocrWorker: null };
-const TOOL_TITLES = { docscan: 'A4 文档扫描', ocr: '扫描文本', image: '图片处理', text: '文字工具', date: '日期计算', units: '单位换算', split: 'AA 分账', qr: '二维码工具', 'note-editor': '编辑便签' };
+const state = { currentView: 'home', activeTool: null, notes: [], receipts: [], scanPages: [], installPrompt: null, imageBlob: null, imageName: '轻捷图片.jpg', ocrWorker: null };
+const TOOL_TITLES = { docscan: 'A4 文档扫描', pdf: 'PDF 工作台', screenshots: '截图处理中心', receipt: '票据与报销助手', ocr: '智能文字提取', image: '图片处理', text: '文字工具', date: '日期计算', units: '单位换算', split: 'AA 分账', qr: '二维码工具', 'note-editor': '编辑便签' };
 let openCvPromise;
 const UNIT_DATA = {
   length: { units: { m: ['米', 1], km: ['千米', 1000], cm: ['厘米', .01], mm: ['毫米', .001], in: ['英寸', .0254], ft: ['英尺', .3048] }, defaults: ['m', 'cm'] },
@@ -15,6 +16,7 @@ const UNIT_DATA = {
 
 function init() {
   loadNotes();
+  loadReceipts();
   setToday();
   applyTheme(localStorage.getItem('pocketkit-theme') || 'system');
   bindNavigation();
@@ -81,7 +83,7 @@ function closeTool() {
 }
 
 function setupTool(name, options) {
-  const setups = { docscan: setupDocumentScanner, ocr: () => setupOcr(options.blob), image: setupImage, text: setupText, date: setupDate, units: setupUnits, split: setupSplit, qr: setupQr, 'note-editor': () => setupNoteEditor(options.id) };
+  const setups = { docscan: setupDocumentScanner, pdf: setupPdfWorkbench, screenshots: setupScreenshotCenter, receipt: setupReceiptAssistant, ocr: () => setupOcr(options.blob), image: setupImage, text: setupText, date: setupDate, units: setupUnits, split: setupSplit, qr: setupQr, 'note-editor': () => setupNoteEditor(options.id) };
   setups[name]?.();
 }
 
@@ -121,6 +123,392 @@ async function installApp() {
   } else {
     toast('在 Safari 中点“分享”，再选“添加到主屏幕”');
   }
+}
+
+function setupPdfWorkbench() {
+  const sources = new Map();
+  let pages = [];
+  const input = $('#pdfFiles');
+  const loading = $('#pdfLoading');
+  const section = $('#pdfPagesSection');
+  const options = $('#pdfOptions');
+  const pageList = $('#pdfPageList');
+  const signature = bindSignaturePad($('#signatureCanvas'));
+
+  const render = () => {
+    section.hidden = pages.length === 0;
+    options.hidden = pages.length === 0;
+    $('#pdfPageCount').textContent = pages.length;
+    pageList.innerHTML = pages.map((page, index) => `<div class="pdf-page-item">
+      <span class="pdf-page-number">${index + 1}</span>
+      <span class="pdf-page-copy"><strong>${escapeHtml(page.fileName)}</strong><small>${page.kind === 'pdf' ? `原文件第 ${page.pageIndex + 1} 页` : '图片页面'}${page.rotation ? ` · 旋转 ${page.rotation}°` : ''}</small></span>
+      <span class="pdf-page-controls"><button data-pdf-up="${page.id}" aria-label="上移">↑</button><button data-pdf-down="${page.id}" aria-label="下移">↓</button><button data-pdf-rotate="${page.id}" aria-label="旋转">↻</button><button data-pdf-delete="${page.id}" aria-label="删除">×</button></span>
+    </div>`).join('');
+    $$('[data-pdf-up]', pageList).forEach(button => button.addEventListener('click', () => movePdfPage(button.dataset.pdfUp, -1)));
+    $$('[data-pdf-down]', pageList).forEach(button => button.addEventListener('click', () => movePdfPage(button.dataset.pdfDown, 1)));
+    $$('[data-pdf-rotate]', pageList).forEach(button => button.addEventListener('click', () => { const page = pages.find(item => item.id === button.dataset.pdfRotate); page.rotation = (page.rotation + 90) % 360; render(); }));
+    $$('[data-pdf-delete]', pageList).forEach(button => button.addEventListener('click', () => { pages = pages.filter(item => item.id !== button.dataset.pdfDelete); render(); }));
+  };
+  const movePdfPage = (id, direction) => {
+    const index = pages.findIndex(page => page.id === id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= pages.length) return;
+    [pages[index], pages[target]] = [pages[target], pages[index]];
+    render();
+  };
+
+  input.addEventListener('change', async () => {
+    const files = [...(input.files || [])];
+    if (!files.length) return;
+    loading.hidden = false;
+    try {
+      for (const file of files) {
+        const sourceId = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+          const bytes = new Uint8Array(await file.arrayBuffer());
+          const document = await PDFDocument.load(bytes);
+          sources.set(sourceId, { kind: 'pdf', document });
+          for (let pageIndex = 0; pageIndex < document.getPageCount(); pageIndex++) pages.push({ id: `${sourceId}-${pageIndex}`, sourceId, kind: 'pdf', fileName: file.name, pageIndex, rotation: 0 });
+        } else {
+          const normalized = await normalizeImageForPdf(file);
+          sources.set(sourceId, { kind: 'image', ...normalized });
+          pages.push({ id: `${sourceId}-0`, sourceId, kind: 'image', fileName: file.name, pageIndex: 0, rotation: 0 });
+        }
+      }
+      render();
+    } catch (error) {
+      console.error(error);
+      toast('有文件无法读取，可能已加密或格式不受支持');
+    } finally {
+      loading.hidden = true;
+      input.value = '';
+    }
+  });
+  $('#clearPdfPages').addEventListener('click', () => { pages = []; sources.clear(); render(); });
+  $('#watermarkOpacity').addEventListener('input', event => { $('#watermarkOpacityText').textContent = `${event.target.value}%`; });
+  $('#clearSignature').addEventListener('click', signature.clear);
+  $('#exportPdfWorkbench').addEventListener('click', async () => {
+    if (!pages.length) return;
+    const button = $('#exportPdfWorkbench');
+    button.disabled = true;
+    button.textContent = '正在生成 PDF…';
+    try {
+      const output = await PDFDocument.create();
+      for (const descriptor of pages) {
+        const source = sources.get(descriptor.sourceId);
+        if (descriptor.kind === 'pdf') {
+          const [copied] = await output.copyPages(source.document, [descriptor.pageIndex]);
+          output.addPage(copied);
+          const originalAngle = copied.getRotation().angle || 0;
+          copied.setRotation(degrees((originalAngle + descriptor.rotation) % 360));
+        } else {
+          const image = await output.embedJpg(source.bytes);
+          const quarterTurn = descriptor.rotation % 180 !== 0;
+          const effectiveWidth = quarterTurn ? source.height : source.width;
+          const effectiveHeight = quarterTurn ? source.width : source.height;
+          const landscape = effectiveWidth > effectiveHeight;
+          const pageSize = landscape ? [841.89, 595.28] : [595.28, 841.89];
+          const page = output.addPage(pageSize);
+          const sourceRatio = effectiveWidth / effectiveHeight;
+          let width = pageSize[0] - 48;
+          let height = width / sourceRatio;
+          if (height > pageSize[1] - 48) { height = pageSize[1] - 48; width = height * sourceRatio; }
+          const left = (pageSize[0] - width) / 2;
+          const bottom = (pageSize[1] - height) / 2;
+          const rotation = descriptor.rotation % 360;
+          const draw = rotation === 90 ? { x: left + width, y: bottom, width: height, height: width }
+            : rotation === 180 ? { x: left + width, y: bottom + height, width, height }
+              : rotation === 270 ? { x: left, y: bottom + height, width: height, height: width }
+                : { x: left, y: bottom, width, height };
+          page.drawImage(image, { ...draw, rotate: degrees(rotation) });
+        }
+      }
+      const watermarkText = $('#pdfWatermark').value.trim();
+      let watermarkImage;
+      if (watermarkText) watermarkImage = await output.embedPng(createWatermarkDataUrl(watermarkText, Number($('#watermarkOpacity').value) / 100));
+      let signatureImage;
+      if (signature.hasInk()) signatureImage = await output.embedPng($('#signatureCanvas').toDataURL('image/png'));
+      for (const page of output.getPages()) {
+        const { width, height } = page.getSize();
+        if (watermarkImage) {
+          const drawWidth = Math.min(width * .72, 430);
+          const drawHeight = drawWidth * watermarkImage.height / watermarkImage.width;
+          for (const y of [height * .28, height * .58, height * .88]) page.drawImage(watermarkImage, { x: (width - drawWidth) / 2, y: y - drawHeight / 2, width: drawWidth, height: drawHeight, rotate: degrees(-28) });
+        }
+        if (signatureImage) {
+          const drawWidth = Math.min(150, width * .28);
+          const drawHeight = drawWidth * signatureImage.height / signatureImage.width;
+          page.drawImage(signatureImage, { x: width - drawWidth - 30, y: 30, width: drawWidth, height: drawHeight });
+        }
+      }
+      const bytes = await output.save({ useObjectStreams: true });
+      downloadBlob(new Blob([bytes], { type: 'application/pdf' }), `轻捷-PDF-${toDateInput(new Date())}.pdf`);
+      toast(`PDF 已生成，共 ${pages.length} 页`);
+    } catch (error) {
+      console.error(error);
+      toast('PDF 生成失败，请减少页面后重试');
+    } finally {
+      button.disabled = false;
+      button.textContent = '生成并保存 PDF';
+    }
+  });
+}
+
+function bindSignaturePad(canvas) {
+  const context = canvas.getContext('2d');
+  context.lineCap = 'round';
+  context.lineJoin = 'round';
+  context.lineWidth = 5;
+  context.strokeStyle = '#152d27';
+  let drawing = false;
+  let ink = false;
+  const point = event => { const rect = canvas.getBoundingClientRect(); return { x: (event.clientX - rect.left) / rect.width * canvas.width, y: (event.clientY - rect.top) / rect.height * canvas.height }; };
+  canvas.addEventListener('pointerdown', event => { drawing = true; ink = true; canvas.setPointerCapture(event.pointerId); const p = point(event); context.beginPath(); context.moveTo(p.x, p.y); });
+  canvas.addEventListener('pointermove', event => { if (!drawing) return; const p = point(event); context.lineTo(p.x, p.y); context.stroke(); });
+  canvas.addEventListener('pointerup', event => { drawing = false; canvas.releasePointerCapture(event.pointerId); });
+  canvas.addEventListener('pointercancel', () => { drawing = false; });
+  return { hasInk: () => ink, clear: () => { context.clearRect(0, 0, canvas.width, canvas.height); ink = false; } };
+}
+
+async function normalizeImageForPdf(file) {
+  const image = await loadImage(URL.createObjectURL(file));
+  const scale = Math.min(1, 2600 / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(image.naturalWidth * scale);
+  canvas.height = Math.round(image.naturalHeight * scale);
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#fff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .9));
+  return { bytes: new Uint8Array(await blob.arrayBuffer()), width: canvas.width, height: canvas.height };
+}
+
+function createWatermarkDataUrl(text, opacity) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1200;
+  canvas.height = 180;
+  const context = canvas.getContext('2d');
+  context.font = '700 66px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillStyle = `rgba(45,56,52,${opacity})`;
+  context.fillText(text, canvas.width / 2, canvas.height / 2);
+  return canvas.toDataURL('image/png');
+}
+
+function setupScreenshotCenter() {
+  let items = [];
+  let baseCanvas;
+  let redactions = [];
+  let drawingStart = null;
+  let previewRect = null;
+  const input = $('#screenshotFiles');
+  const list = $('#screenshotList');
+  const resultCanvas = $('#stitchCanvas');
+
+  const renderItems = () => {
+    list.innerHTML = items.map((item, index) => `<div class="screenshot-thumb"><img src="${item.url}" alt="截图 ${index + 1}"><span>${index + 1}</span><button data-remove-shot="${item.id}" aria-label="删除截图">×</button></div>`).join('');
+    $$('[data-remove-shot]', list).forEach(button => button.addEventListener('click', () => { items = items.filter(item => item.id !== button.dataset.removeShot); renderItems(); }));
+    $('#stitchScreenshots').disabled = items.length < 2;
+  };
+  input.addEventListener('change', () => {
+    for (const file of [...(input.files || [])]) items.push({ id: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`, file, url: URL.createObjectURL(file) });
+    input.value = '';
+    renderItems();
+  });
+  $('#stitchScreenshots').addEventListener('click', async () => {
+    const button = $('#stitchScreenshots');
+    button.disabled = true;
+    button.textContent = '正在识别重复区域…';
+    try {
+      const images = await Promise.all(items.map(item => loadImage(item.url)));
+      const targetWidth = Math.min(1200, ...images.map(image => image.naturalWidth));
+      const normalized = images.map(image => {
+        const canvas = document.createElement('canvas');
+        canvas.width = targetWidth;
+        canvas.height = Math.round(image.naturalHeight * targetWidth / image.naturalWidth);
+        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+        return canvas;
+      });
+      const overlaps = [0];
+      for (let index = 1; index < normalized.length; index++) overlaps.push(findScreenshotOverlap(normalized[index - 1], normalized[index]));
+      let totalHeight = normalized.reduce((sum, canvas) => sum + canvas.height, 0) - overlaps.reduce((sum, value) => sum + value, 0);
+      const fitScale = Math.min(1, 28000 / totalHeight);
+      baseCanvas = document.createElement('canvas');
+      baseCanvas.width = Math.round(targetWidth * fitScale);
+      baseCanvas.height = Math.round(totalHeight * fitScale);
+      const context = baseCanvas.getContext('2d');
+      let y = 0;
+      normalized.forEach((canvas, index) => {
+        const overlap = overlaps[index];
+        const sourceY = overlap;
+        const sourceHeight = canvas.height - overlap;
+        const drawHeight = Math.round(sourceHeight * fitScale);
+        context.drawImage(canvas, 0, sourceY, canvas.width, sourceHeight, 0, y, baseCanvas.width, drawHeight);
+        y += drawHeight;
+      });
+      redactions = [];
+      drawStitchedCanvas(resultCanvas, baseCanvas, redactions);
+      $('#stitchInfo').textContent = `已拼接 ${items.length} 张 · 自动移除 ${overlaps.slice(1).reduce((a, b) => a + b, 0)} px 重复区域`;
+      $('#stitchResult').hidden = false;
+      $('#stitchResult').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+      console.error(error);
+      toast('截图拼接失败，请减少图片数量后重试');
+    } finally {
+      button.disabled = items.length < 2;
+      button.textContent = '智能拼接长图';
+    }
+  });
+  const canvasPoint = event => { const rect = resultCanvas.getBoundingClientRect(); return { x: (event.clientX - rect.left) / rect.width * resultCanvas.width, y: (event.clientY - rect.top) / rect.height * resultCanvas.height }; };
+  resultCanvas.addEventListener('pointerdown', event => { if (!baseCanvas) return; drawingStart = canvasPoint(event); previewRect = null; resultCanvas.setPointerCapture(event.pointerId); });
+  resultCanvas.addEventListener('pointermove', event => { if (!drawingStart) return; const end = canvasPoint(event); previewRect = rectFromPoints(drawingStart, end); drawStitchedCanvas(resultCanvas, baseCanvas, redactions, previewRect); });
+  resultCanvas.addEventListener('pointerup', event => { if (!drawingStart) return; const rect = rectFromPoints(drawingStart, canvasPoint(event)); if (rect.width > 8 && rect.height > 8) redactions.push(rect); drawingStart = null; previewRect = null; drawStitchedCanvas(resultCanvas, baseCanvas, redactions); resultCanvas.releasePointerCapture(event.pointerId); });
+  $('#undoRedaction').addEventListener('click', () => { redactions.pop(); if (baseCanvas) drawStitchedCanvas(resultCanvas, baseCanvas, redactions); });
+  $('#clearRedactions').addEventListener('click', () => { redactions = []; if (baseCanvas) drawStitchedCanvas(resultCanvas, baseCanvas, redactions); });
+  $('#saveLongImage').addEventListener('click', () => resultCanvas.toBlob(blob => downloadBlob(blob, `轻捷-长截图-${Date.now()}.jpg`), 'image/jpeg', .9));
+  $('#saveLongPdf').addEventListener('click', () => exportLongCanvasPdf(resultCanvas));
+}
+
+function findScreenshotOverlap(previous, next) {
+  const width = Math.min(previous.width, next.width);
+  const maxOverlap = Math.floor(Math.min(620, previous.height * .42, next.height * .42));
+  if (maxOverlap < 30) return 0;
+  const prevData = previous.getContext('2d', { willReadFrequently: true }).getImageData(0, previous.height - maxOverlap, width, maxOverlap).data;
+  const nextData = next.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, width, maxOverlap).data;
+  const xStep = Math.max(8, Math.floor(width / 42));
+  let bestOverlap = 0;
+  let bestScore = Infinity;
+  for (let overlap = 28; overlap <= maxOverlap; overlap++) {
+    let score = 0;
+    let samples = 0;
+    for (let sample = 1; sample <= 11; sample++) {
+      const offset = Math.floor(overlap * sample / 12);
+      const previousY = maxOverlap - overlap + offset;
+      const nextY = offset;
+      for (let x = 0; x < width; x += xStep) {
+        const a = (previousY * width + x) * 4;
+        const b = (nextY * width + x) * 4;
+        score += Math.abs(prevData[a] - nextData[b]) + Math.abs(prevData[a + 1] - nextData[b + 1]) + Math.abs(prevData[a + 2] - nextData[b + 2]);
+        samples += 3;
+      }
+    }
+    score /= samples;
+    if (score < bestScore) { bestScore = score; bestOverlap = overlap; }
+  }
+  return bestScore < 24 ? bestOverlap : 0;
+}
+
+function rectFromPoints(a, b) { return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) }; }
+function drawStitchedCanvas(target, source, redactions, preview) {
+  target.width = source.width;
+  target.height = source.height;
+  const context = target.getContext('2d');
+  context.drawImage(source, 0, 0);
+  context.fillStyle = '#111';
+  for (const rect of [...redactions, ...(preview ? [preview] : [])]) context.fillRect(rect.x, rect.y, rect.width, rect.height);
+}
+function exportLongCanvasPdf(canvas) {
+  const pageRatio = 297 / 210;
+  const sliceHeight = Math.floor(canvas.width * pageRatio);
+  const pages = Math.ceil(canvas.height / sliceHeight);
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+  for (let index = 0; index < pages; index++) {
+    if (index) pdf.addPage('a4', 'portrait');
+    const height = Math.min(sliceHeight, canvas.height - index * sliceHeight);
+    const slice = document.createElement('canvas');
+    slice.width = canvas.width;
+    slice.height = height;
+    slice.getContext('2d').drawImage(canvas, 0, index * sliceHeight, canvas.width, height, 0, 0, canvas.width, height);
+    pdf.addImage(slice.toDataURL('image/jpeg', .88), 'JPEG', 0, 0, 210, 210 * height / canvas.width, undefined, 'FAST');
+  }
+  pdf.save(`轻捷-长截图-${toDateInput(new Date())}.pdf`);
+}
+
+function setupReceiptAssistant() {
+  let file;
+  const input = $('#receiptFile');
+  input.addEventListener('change', () => {
+    file = input.files?.[0];
+    if (!file) return;
+    $('#receiptPreview').src = URL.createObjectURL(file);
+    $('#receiptPreview').hidden = false;
+    $('#recognizeReceipt').disabled = false;
+  });
+  $('#recognizeReceipt').addEventListener('click', async () => {
+    if (!file) return;
+    const button = $('#recognizeReceipt');
+    button.disabled = true;
+    $('#receiptProgress').hidden = false;
+    try {
+      state.ocrWorker = await createOcrWorker('chi_sim+eng', message => {
+        const value = Number.isFinite(message.progress) ? message.progress : 0;
+        $('#receiptStatus').textContent = message.status === 'recognizing text' ? '正在读取票据内容…' : '正在准备识别组件…';
+        $('#receiptPercent').textContent = `${Math.round(value * 100)}%`;
+        $('#receiptProgress progress').value = value;
+      });
+      const result = await state.ocrWorker.recognize(file);
+      await state.ocrWorker.terminate();
+      state.ocrWorker = null;
+      const parsed = parseReceiptText(result.data.text);
+      $('#receiptMerchant').value = parsed.merchant;
+      $('#receiptDate').value = parsed.date;
+      $('#receiptAmount').value = parsed.amount;
+      $('#receiptCategory').value = parsed.category;
+      $('#receiptRawText').value = result.data.text.trim();
+      $('#receiptFields').hidden = false;
+      toast('票据信息已提取，请核对后保存');
+    } catch (error) {
+      console.error(error);
+      toast('票据识别失败，请重新拍摄');
+    } finally { button.disabled = false; }
+  });
+  $('#saveReceiptRecord').addEventListener('click', () => {
+    const record = {
+      id: crypto.randomUUID?.() || String(Date.now()), merchant: $('#receiptMerchant').value.trim() || '未命名商家',
+      date: $('#receiptDate').value || toDateInput(new Date()), amount: Number($('#receiptAmount').value) || 0,
+      category: $('#receiptCategory').value, note: $('#receiptNote').value.trim(), createdAt: Date.now()
+    };
+    state.receipts.unshift(record);
+    saveReceipts();
+    renderReceiptRecords();
+    toast('已保存到报销记录');
+  });
+  $('#exportReceiptCsv').addEventListener('click', exportReceiptCsv);
+  $('#clearReceiptRecords').addEventListener('click', () => { if (confirm('确定清空全部报销记录吗？')) { state.receipts = []; saveReceipts(); renderReceiptRecords(); } });
+  renderReceiptRecords();
+}
+
+function parseReceiptText(text) {
+  const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const dateMatch = text.match(/(20\d{2})[年\/\-.]\s*(\d{1,2})[月\/\-.]\s*(\d{1,2})日?/);
+  const date = dateMatch ? `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}` : toDateInput(new Date());
+  const amountLines = lines.filter(line => /合计|总计|应付|实付|金额|total|amount/i.test(line));
+  const amountCandidates = (amountLines.length ? amountLines : lines).flatMap(line => [...line.matchAll(/(?:¥|￥|RMB|CNY|\$)?\s*(\d{1,7}(?:[.,]\d{2}))/gi)].map(match => Number(match[1].replace(',', '.')))).filter(value => Number.isFinite(value));
+  const amount = amountCandidates.length ? Math.max(...amountCandidates).toFixed(2) : '';
+  const merchant = lines.find(line => line.length >= 2 && line.length <= 32 && !/发票|收据|小票|欢迎|电话|日期|时间|合计|总计|金额|NO\.?|\d{4,}/i.test(line)) || lines[0] || '';
+  const category = /餐|饭|咖啡|茶|restaurant|food|coffee|cafe/i.test(text) ? '餐饮' : /出租|地铁|公交|滴滴|车票|加油|taxi/i.test(text) ? '交通' : /酒店|宾馆|住宿|hotel/i.test(text) ? '住宿' : /办公|文具|office/i.test(text) ? '办公' : '其他';
+  return { merchant, date, amount, category };
+}
+
+function loadReceipts() { try { state.receipts = JSON.parse(localStorage.getItem('pocketkit-receipts') || '[]'); } catch { state.receipts = []; } }
+function saveReceipts() { localStorage.setItem('pocketkit-receipts', JSON.stringify(state.receipts)); }
+function renderReceiptRecords() {
+  const section = $('#receiptRecordsSection');
+  const list = $('#receiptRecordList');
+  if (!section || !list) return;
+  section.hidden = state.receipts.length === 0;
+  $('#receiptRecordCount').textContent = state.receipts.length;
+  list.innerHTML = state.receipts.map(record => `<div class="receipt-record"><strong>${escapeHtml(record.merchant)}</strong><b>¥${Number(record.amount).toFixed(2)}</b><small>${escapeHtml(record.date)} · ${escapeHtml(record.category)}${record.note ? ` · ${escapeHtml(record.note)}` : ''}</small><button data-delete-receipt="${record.id}">删除</button></div>`).join('');
+  $$('[data-delete-receipt]', list).forEach(button => button.addEventListener('click', () => { state.receipts = state.receipts.filter(record => record.id !== button.dataset.deleteReceipt); saveReceipts(); renderReceiptRecords(); }));
+}
+function exportReceiptCsv() {
+  if (!state.receipts.length) return;
+  const quote = value => `"${String(value ?? '').replaceAll('"', '""')}"`;
+  const rows = [['日期', '商家', '分类', '金额', '备注'], ...state.receipts.map(record => [record.date, record.merchant, record.category, Number(record.amount).toFixed(2), record.note])];
+  const csv = '\uFEFF' + rows.map(row => row.map(quote).join(',')).join('\r\n');
+  downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `轻捷-报销记录-${toDateInput(new Date())}.csv`);
 }
 
 function loadOpenCv() {
@@ -429,19 +817,14 @@ function setupOcr(initialBlob) {
     progress.hidden = false;
     $('#ocrResultWrap').hidden = true;
     $('#ocrActions').hidden = true;
+    $('#ocrSmartActions').hidden = true;
     try {
-      const base = new URL('.', location.href).href;
-      state.ocrWorker = await Tesseract.createWorker($('#ocrLang').value, Tesseract.OEM.LSTM_ONLY, {
-        workerPath: `${base}vendor/worker.min.js`,
-        langPath: `${base}vendor/tessdata/`,
-        corePath: `${base}vendor/tesseract-core/`,
-        gzip: false,
-        logger: message => updateOcrProgress(message)
-      });
+      state.ocrWorker = await createOcrWorker($('#ocrLang').value, updateOcrProgress);
       const result = await state.ocrWorker.recognize(file);
       $('#ocrResult').value = result.data.text.trim();
       $('#ocrResultWrap').hidden = false;
       $('#ocrActions').hidden = false;
+      renderOcrSmartActions(result.data.text.trim());
       updateOcrProgress({ status: 'recognizing text', progress: 1 });
       await state.ocrWorker.terminate();
       state.ocrWorker = null;
@@ -461,6 +844,38 @@ function setupOcr(initialBlob) {
     addNote({ title: '扫描文字', content: text });
     toast('已保存到便签');
   });
+}
+
+function createOcrWorker(language, logger) {
+  const base = new URL('.', location.href).href;
+  return Tesseract.createWorker(language, Tesseract.OEM.LSTM_ONLY, {
+    workerPath: `${base}vendor/worker.min.js`,
+    langPath: `${base}vendor/tessdata/`,
+    corePath: `${base}vendor/tesseract-core/`,
+    gzip: false,
+    logger
+  });
+}
+
+function renderOcrSmartActions(text) {
+  const actions = [];
+  const phone = text.match(/(?:\+?86[- ]?)?1[3-9]\d{9}|(?:0\d{2,3}[- ]?)?\d{7,8}/)?.[0];
+  const email = text.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/)?.[0];
+  const url = text.match(/https?:\/\/[^\s]+|www\.[^\s]+/i)?.[0];
+  const addressLine = text.split(/\r?\n/).find(line => /(?:省|市|区|县|路|街|大道|号)/.test(line) && line.trim().length >= 6 && line.trim().length <= 60);
+  const date = text.match(/20\d{2}[年\/\-.]\d{1,2}[月\/\-.]\d{1,2}日?/)?.[0];
+  if (phone) actions.push({ label: `拨打 ${phone}`, href: `tel:${phone.replace(/[^\d+]/g, '')}` });
+  if (email) actions.push({ label: '发送邮件', href: `mailto:${email}` });
+  if (url) actions.push({ label: '打开网址', href: url.startsWith('http') ? url : `https://${url}` });
+  if (addressLine) actions.push({ label: '在地图中查看', href: `https://maps.apple.com/?q=${encodeURIComponent(addressLine.trim())}` });
+  if (date) actions.push({ label: `复制日期 ${date}`, copy: date });
+  const wrap = $('#ocrSmartActions');
+  const list = $('#ocrActionList');
+  wrap.hidden = actions.length === 0;
+  list.innerHTML = actions.map((action, index) => action.href
+    ? `<a class="smart-action" href="${escapeHtml(action.href)}" target="_blank" rel="noopener">${escapeHtml(action.label)}</a>`
+    : `<button class="smart-action" data-smart-copy="${index}">${escapeHtml(action.label)}</button>`).join('');
+  $$('[data-smart-copy]', list).forEach(button => button.addEventListener('click', () => copyText(actions[Number(button.dataset.smartCopy)].copy)));
 }
 
 function updateOcrProgress(message) {
@@ -741,14 +1156,16 @@ function setupNoteEditor(id) {
 }
 
 function exportNotes() {
-  const blob = new Blob([JSON.stringify({ app: '轻捷', exportedAt: new Date().toISOString(), notes: state.notes }, null, 2)], { type: 'application/json' });
-  downloadBlob(blob, `轻捷便签-${toDateInput(new Date())}.json`);
+  const blob = new Blob([JSON.stringify({ app: '轻捷', exportedAt: new Date().toISOString(), notes: state.notes, receipts: state.receipts }, null, 2)], { type: 'application/json' });
+  downloadBlob(blob, `轻捷本地数据-${toDateInput(new Date())}.json`);
 }
 
 function clearData() {
   if (!confirm('这会删除所有便签和本地设置，且无法恢复。确定继续吗？')) return;
   state.notes = [];
+  state.receipts = [];
   localStorage.removeItem('pocketkit-notes');
+  localStorage.removeItem('pocketkit-receipts');
   renderNotes();
   toast('本地数据已清除');
 }

@@ -1,5 +1,5 @@
 node_modules/
-qa-*.png
+qa-*
 server.log
 server.pid
 .playwright-cli/

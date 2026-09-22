@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'pocketkit-shell-v3';
-const RUNTIME_CACHE = 'pocketkit-runtime-v3';
+const SHELL_CACHE = 'pocketkit-shell-v4';
+const RUNTIME_CACHE = 'pocketkit-runtime-v4';
 const SHELL = [
   './', './index.html', './styles.css', './app.js', './manifest.webmanifest',
   './vendor/tesseract.min.js', './assets/icon-180.png', './assets/icon-192.png', './assets/icon-512.png'

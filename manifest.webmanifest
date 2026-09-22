@@ -15,6 +15,7 @@
   ],
   "shortcuts": [
     { "name": "A4 文档扫描", "short_name": "扫描", "url": "./?tool=docscan", "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192" }] },
-    { "name": "新建便签", "short_name": "便签", "url": "./?tool=note-editor", "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192" }] }
+    { "name": "PDF 工作台", "short_name": "PDF", "url": "./?tool=pdf", "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192" }] },
+    { "name": "票据助手", "short_name": "票据", "url": "./?tool=receipt", "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192" }] }
   ]
 }

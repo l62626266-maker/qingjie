@@ -60,10 +60,10 @@
 
         <div class="section-heading"><h2>常用工具</h2><button data-nav="tools">查看全部</button></div>
         <div class="quick-grid">
-          <button class="quick-card coral" data-open-tool="image"><span class="quick-icon"><svg><use href="#i-image"/></svg></span><strong>图片处理</strong><small>压缩 · 改尺寸</small></button>
-          <button class="quick-card blue" data-open-tool="text"><span class="quick-icon"><svg><use href="#i-text"/></svg></span><strong>文字整理</strong><small>清理 · 统计</small></button>
-          <button class="quick-card gold" data-open-tool="date"><span class="quick-icon"><svg><use href="#i-calendar"/></svg></span><strong>日期计算</strong><small>间隔 · 年龄</small></button>
-          <button class="quick-card purple" data-open-tool="qr"><span class="quick-icon"><svg><use href="#i-qr"/></svg></span><strong>二维码</strong><small>生成 · 扫描</small></button>
+          <button class="quick-card coral" data-open-tool="pdf"><span class="quick-icon"><svg><use href="#i-note"/></svg></span><strong>PDF 工作台</strong><small>合并 · 签名 · 水印</small></button>
+          <button class="quick-card blue" data-open-tool="screenshots"><span class="quick-icon"><svg><use href="#i-image"/></svg></span><strong>截图处理</strong><small>长图 · 打码</small></button>
+          <button class="quick-card gold" data-open-tool="receipt"><span class="quick-icon"><svg><use href="#i-wallet"/></svg></span><strong>票据助手</strong><small>识别 · 报销记录</small></button>
+          <button class="quick-card purple" data-open-tool="ocr"><span class="quick-icon"><svg><use href="#i-text"/></svg></span><strong>智能提取</strong><small>文字 · 电话 · 日期</small></button>
         </div>
 
         <div class="privacy-card">
@@ -77,6 +77,9 @@
         <label class="search-box"><span>⌕</span><input id="toolSearch" type="search" placeholder="搜索工具" autocomplete="off"></label>
         <div class="tool-list" id="toolList">
           <button data-open-tool="docscan" data-keywords="A4 文档 扫描 自动裁边 透视 增强 PDF 多页"><span class="list-icon green"><svg><use href="#i-scan"/></svg></span><span><strong>A4 文档扫描</strong><small>自动裁边、增强并导出 PDF</small></span><svg class="chevron"><use href="#i-chevron"/></svg></button>
+          <button data-open-tool="pdf" data-keywords="PDF 合并 拆分 页面 排序 签名 水印 图片 转换"><span class="list-icon coral"><svg><use href="#i-note"/></svg></span><span><strong>PDF 工作台</strong><small>按页重排、签名、水印与合并</small></span><svg class="chevron"><use href="#i-chevron"/></svg></button>
+          <button data-open-tool="screenshots" data-keywords="截图 长图 拼接 去重 打码 隐私 马赛克"><span class="list-icon blue"><svg><use href="#i-image"/></svg></span><span><strong>截图处理中心</strong><small>智能拼长图、手动打码和导出</small></span><svg class="chevron"><use href="#i-chevron"/></svg></button>
+          <button data-open-tool="receipt" data-keywords="票据 发票 小票 报销 金额 商家 CSV"><span class="list-icon gold"><svg><use href="#i-wallet"/></svg></span><span><strong>票据与报销助手</strong><small>识别金额日期并导出记录</small></span><svg class="chevron"><use href="#i-chevron"/></svg></button>
           <button data-open-tool="ocr" data-keywords="扫描 文字 OCR 相机 中文 英文"><span class="list-icon blue"><svg><use href="#i-text"/></svg></span><span><strong>扫描文本</strong><small>拍照提取中英文文字</small></span><svg class="chevron"><use href="#i-chevron"/></svg></button>
           <button data-open-tool="image" data-keywords="图片 压缩 裁剪 尺寸 JPG PNG 元数据"><span class="list-icon coral"><svg><use href="#i-image"/></svg></span><span><strong>图片处理</strong><small>压缩、旋转、改尺寸、去定位</small></span><svg class="chevron"><use href="#i-chevron"/></svg></button>
           <button data-open-tool="text" data-keywords="文字 文本 字数 去重 空格 大小写"><span class="list-icon blue"><svg><use href="#i-text"/></svg></span><span><strong>文字工具</strong><small>统计、清理与格式转换</small></span><svg class="chevron"><use href="#i-chevron"/></svg></button>
@@ -100,10 +103,10 @@
           <button id="installButton"><span>＋</span><div><strong>添加到主屏幕</strong><small>像 App 一样快速打开</small></div><em>添加</em></button>
         </div>
         <div class="settings-group danger-group">
-          <button id="exportData"><span>⇧</span><div><strong>导出便签</strong><small>下载为 JSON 备份文件</small></div><em>导出</em></button>
-          <button id="clearData"><span><svg><use href="#i-trash"/></svg></span><div><strong>清除本地数据</strong><small>删除便签和使用记录</small></div><em>清除</em></button>
+          <button id="exportData"><span>⇧</span><div><strong>导出本地数据</strong><small>备份便签和报销记录</small></div><em>导出</em></button>
+          <button id="clearData"><span><svg><use href="#i-trash"/></svg></span><div><strong>清除本地数据</strong><small>删除便签和报销记录</small></div><em>清除</em></button>
         </div>
-        <div class="about-card"><div class="brand-mark large">轻</div><strong>轻捷 1.0</strong><p>为手机而生的隐私工具箱<br>所有核心计算都在设备本地完成</p></div>
+        <div class="about-card"><div class="brand-mark large">轻</div><strong>轻捷 2.0</strong><p>为手机而生的隐私工具箱<br>所有核心计算都在设备本地完成</p></div>
       </section>
     </main>
 
@@ -132,6 +135,49 @@
     <div class="progress-wrap" id="ocrProgress" hidden><div><span id="ocrStatus">准备识别…</span><em id="ocrPercent">0%</em></div><progress value="0" max="1"></progress><small>首次使用需要加载离线识别组件</small></div>
     <label class="field result-field" id="ocrResultWrap" hidden><span>识别结果</span><textarea id="ocrResult" rows="9" placeholder="识别结果会显示在这里"></textarea></label>
     <div class="action-row" id="ocrActions" hidden><button class="secondary-button" id="copyOcr"><svg><use href="#i-copy"/></svg>复制</button><button class="secondary-button" id="saveOcr"><svg><use href="#i-note"/></svg>存为便签</button></div>
+    <div class="smart-actions" id="ocrSmartActions" hidden><span class="control-label">识别出的快捷操作</span><div id="ocrActionList"></div></div>
+  </template>
+
+  <template id="tpl-pdf">
+    <div class="tool-intro"><span class="hero-icon coral"><svg><use href="#i-note"/></svg></span><div><h3>PDF 工作台</h3><p>按页面重新组合 PDF 和图片，并加入签名或用途水印。</p></div></div>
+    <label class="drop-zone"><input id="pdfFiles" type="file" accept="application/pdf,image/*" multiple><svg><use href="#i-note"/></svg><strong>选择 PDF 或图片</strong><small>可多选；每一页都能排序或删除</small></label>
+    <div class="pdf-loading" id="pdfLoading" hidden><span class="spinner"></span><strong>正在读取文件…</strong></div>
+    <section class="pdf-pages" id="pdfPagesSection" hidden><div class="section-heading"><h3>输出页面 <em id="pdfPageCount">0</em></h3><button id="clearPdfPages">清空</button></div><div class="pdf-page-list" id="pdfPageList"></div></section>
+    <div class="pdf-options" id="pdfOptions" hidden>
+      <label class="field"><span>用途水印（可选）</span><input id="pdfWatermark" type="text" placeholder="例如：仅供办理宽带使用" maxlength="40"></label>
+      <label class="range-field"><span><b>水印深浅</b><em id="watermarkOpacityText">18%</em></span><input id="watermarkOpacity" type="range" min="8" max="45" value="18"></label>
+      <div class="signature-block"><span class="control-label">手写签名（可选，签在每页右下角）</span><canvas id="signatureCanvas" width="700" height="220"></canvas><button class="text-button" id="clearSignature">清除签名</button></div>
+      <button class="primary-button" id="exportPdfWorkbench">生成并保存 PDF</button>
+      <p class="privacy-note">文件只在本机浏览器中重组，不会上传。</p>
+    </div>
+  </template>
+
+  <template id="tpl-screenshots">
+    <div class="tool-intro"><span class="hero-icon blue"><svg><use href="#i-image"/></svg></span><div><h3>截图处理中心</h3><p>自动识别重复区域，拼成长图后可直接涂黑隐私内容。</p></div></div>
+    <label class="drop-zone"><input id="screenshotFiles" type="file" accept="image/*" multiple><svg><use href="#i-image"/></svg><strong>选择多张连续截图</strong><small>请按照从上到下的顺序选择</small></label>
+    <div class="screenshot-list" id="screenshotList"></div>
+    <button class="primary-button" id="stitchScreenshots" disabled>智能拼接长图</button>
+    <div class="stitch-result" id="stitchResult" hidden>
+      <div class="result-summary"><strong id="stitchInfo">拼接完成</strong><small>在图片上拖动，可涂黑手机号、姓名等隐私内容</small></div>
+      <div class="redact-stage"><canvas id="stitchCanvas"></canvas></div>
+      <div class="action-grid"><button id="undoRedaction">撤销打码</button><button id="clearRedactions">清除打码</button><button id="saveLongImage">保存长图</button><button id="saveLongPdf">保存 PDF</button></div>
+    </div>
+  </template>
+
+  <template id="tpl-receipt">
+    <div class="tool-intro"><span class="hero-icon gold"><svg><use href="#i-wallet"/></svg></span><div><h3>票据与报销助手</h3><p>识别商家、日期和金额，形成可导出的报销记录。</p></div></div>
+    <label class="drop-zone"><input id="receiptFile" type="file" accept="image/*" capture="environment"><svg><use href="#i-camera"/></svg><strong>拍摄或选择票据</strong><small>尽量拍正、保持金额区域清晰</small></label>
+    <img class="media-preview" id="receiptPreview" alt="票据预览" hidden>
+    <button class="primary-button" id="recognizeReceipt" disabled>识别票据信息</button>
+    <div class="progress-wrap" id="receiptProgress" hidden><div><span id="receiptStatus">准备识别…</span><em id="receiptPercent">0%</em></div><progress value="0" max="1"></progress></div>
+    <div class="receipt-fields" id="receiptFields" hidden>
+      <div class="two-fields"><label class="field"><span>商家</span><input id="receiptMerchant" type="text" placeholder="商家名称"></label><label class="field"><span>日期</span><input id="receiptDate" type="date"></label></div>
+      <div class="two-fields"><label class="field"><span>金额</span><input id="receiptAmount" type="number" inputmode="decimal" step="0.01" placeholder="0.00"></label><label class="field"><span>分类</span><select id="receiptCategory"><option>餐饮</option><option>交通</option><option>办公</option><option>住宿</option><option>购物</option><option>其他</option></select></label></div>
+      <label class="field"><span>备注</span><input id="receiptNote" type="text" placeholder="项目或报销说明"></label>
+      <button class="primary-button" id="saveReceiptRecord">保存到报销记录</button>
+      <details class="raw-text"><summary>查看识别原文</summary><textarea id="receiptRawText" rows="7"></textarea></details>
+    </div>
+    <section class="receipt-records" id="receiptRecordsSection" hidden><div class="section-heading"><h3>报销记录 <em id="receiptRecordCount">0</em></h3><button id="exportReceiptCsv">导出 CSV</button></div><div id="receiptRecordList"></div><button class="danger-button" id="clearReceiptRecords">清空全部记录</button></section>
   </template>
 
   <template id="tpl-docscan">

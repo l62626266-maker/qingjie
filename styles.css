@@ -241,6 +241,51 @@ body.modal-open { overflow: hidden; }
 .scan-page-card span { position: absolute; left: 6px; bottom: 6px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: rgba(11,34,28,.76); color: #fff; font-size: 9px; }
 .scan-page-card button { position: absolute; right: 5px; top: 5px; width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; background: rgba(20,25,23,.75); color: #fff; font-size: 15px; }
 
+.pdf-loading { min-height: 90px; margin-top: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border-radius: 17px; background: var(--surface); font-size: 11px; }
+.pdf-pages .section-heading, .receipt-records .section-heading { margin: 20px 2px 10px; }
+.pdf-pages h3, .receipt-records h3 { margin: 0; font-family: ui-serif, "Songti SC", serif; font-size: 17px; }
+.pdf-pages h3 em, .receipt-records h3 em { display: inline-grid; min-width: 21px; height: 21px; margin-left: 5px; place-items: center; border-radius: 50%; background: var(--brand-2); color: var(--brand); font: 700 10px -apple-system, sans-serif; font-style: normal; }
+.pdf-page-list { display: flex; flex-direction: column; gap: 7px; }
+.pdf-page-item { min-height: 58px; padding: 9px 9px 9px 12px; display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.pdf-page-number { width: 29px; height: 38px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 7px 7px 3px 3px; background: var(--brand-2); color: var(--brand); font-size: 10px; font-weight: 800; }
+.pdf-page-copy { min-width: 0; display: flex; flex: 1; flex-direction: column; gap: 3px; }
+.pdf-page-copy strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.pdf-page-copy small { color: var(--muted); font-size: 9px; }
+.pdf-page-controls { display: flex; gap: 4px; }
+.pdf-page-controls button { width: 29px; height: 29px; border-radius: 9px; background: var(--surface-2); color: var(--muted); font-size: 13px; }
+.pdf-page-controls button:last-child { color: #a9483f; }
+.pdf-options { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--line); }
+.signature-block { margin-top: 15px; }
+.signature-block canvas { display: block; width: 100%; height: 110px; border: 1px dashed rgba(31,91,74,.3); border-radius: 15px; background: #fff; touch-action: none; }
+.text-button { margin-top: 6px; padding: 4px 0; background: none; color: var(--brand); font-size: 10px; font-weight: 700; }
+.privacy-note { color: var(--muted); text-align: center; font-size: 9px; }
+
+.screenshot-list { margin-top: 12px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.screenshot-thumb { position: relative; aspect-ratio: .55; overflow: hidden; border-radius: 11px; background: var(--surface-2); border: 1px solid var(--line); }
+.screenshot-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.screenshot-thumb span { position: absolute; left: 5px; bottom: 5px; width: 19px; height: 19px; display: grid; place-items: center; border-radius: 50%; background: rgba(9,27,22,.78); color: #fff; font-size: 9px; }
+.screenshot-thumb button { position: absolute; right: 4px; top: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(9,27,22,.75); color: #fff; }
+.stitch-result { margin-top: 17px; }
+.result-summary { margin-bottom: 10px; display: flex; flex-direction: column; gap: 3px; }
+.result-summary strong { font-size: 13px; }
+.result-summary small { color: var(--muted); font-size: 9px; }
+.redact-stage { max-height: 450px; overflow: auto; border-radius: 17px; background: #111; touch-action: pan-y; }
+.redact-stage canvas { display: block; width: 100%; height: auto; cursor: crosshair; touch-action: none; }
+
+.receipt-fields { margin-top: 16px; padding-top: 2px; }
+.raw-text { margin-top: 13px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.raw-text summary { padding: 12px 14px; color: var(--muted); font-size: 10px; font-weight: 700; cursor: pointer; }
+.raw-text textarea { width: calc(100% - 20px); margin: 0 10px 10px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-size: 10px; }
+.receipt-records { margin-top: 23px; padding-top: 2px; border-top: 1px solid var(--line); }
+.receipt-record { margin-bottom: 7px; padding: 12px; display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.receipt-record strong { font-size: 12px; }
+.receipt-record b { color: var(--brand); font-size: 14px; }
+.receipt-record small { color: var(--muted); font-size: 9px; }
+.receipt-record button { grid-column: 2; grid-row: 2; background: none; color: #a9483f; font-size: 9px; }
+.smart-actions { margin-top: 16px; padding: 13px; border-radius: 16px; background: var(--surface); }
+.smart-actions #ocrActionList { display: flex; flex-wrap: wrap; gap: 7px; }
+.smart-action { min-height: 36px; padding: 0 11px; display: inline-flex; align-items: center; gap: 5px; border-radius: 11px; background: var(--brand-2); color: var(--brand); font-size: 10px; font-weight: 700; text-decoration: none; }
+
 .toast { position: fixed; z-index: 200; bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + 14px); left: 50%; max-width: calc(100% - 36px); padding: 11px 16px; transform: translate(-50%, 20px); border-radius: 14px; background: #183c32; color: #fff; box-shadow: var(--shadow); font-size: 12px; font-weight: 700; opacity: 0; pointer-events: none; transition: .25s var(--ease); }
 .toast.show { transform: translate(-50%, 0); opacity: 1; }
 
